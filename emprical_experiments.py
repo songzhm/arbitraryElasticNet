@@ -101,6 +101,8 @@
 
 # %%
 
+# https://scikit-optimize.github.io
+
 # try test data
 
 import numpy as np
@@ -150,6 +152,7 @@ HPO_PARAMS = {'n_calls': 1000,
 
 reg = GeneralizedElasticNetRegressor()
 up = min(np.iinfo(np.int64).max, 2 ** p)
+# define search space and parameters
 space = [
     Real(10 ** -5, 10, 'log_uniform', name='lam_1'),
     Real(10 ** -5, 10, 'log_uniform', name='lam_2'),
@@ -157,13 +160,15 @@ space = [
     Integer(0, up, name='w_choice'),
 ]
 
-
+# define objective function, I used mse as score function for our solver,
+# which can be found inn `generalized_elastic_net_solver.py`
 @use_named_args(space)
 def objective(**params):
     reg.set_params(**params)
     return np.mean(cross_val_score(reg, X_test, y_test, cv=3, n_jobs=3))
 
 
+# callback function in each iteration, where I just print out the parameter that was tried in each iter
 def monitor(res):
     dump(res, './hyper_optimization_results.pkl')
     print('run_parameters', str(res.x_iters[-1]))
@@ -172,6 +177,7 @@ def monitor(res):
 
 import os
 
+# test if result file is already exist, if yes, continue from the existing results, else, start from beginning
 exists = os.path.isfile('./hyper_optimization_results.pkl')
 print(exists)
 if exists:
@@ -190,6 +196,7 @@ else:
 
 print("Best score=%.4f" % results.fun)
 
+# plot results
 import matplotlib
 # matplotlib.use('TkAgg')
 from skopt.plots import plot_convergence, plot_evaluations, plot_objective
