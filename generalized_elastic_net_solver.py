@@ -4,14 +4,14 @@ Created by: Yujia Ding
 Created on: 2019-05-11 14:59
 """
 
-
 import numpy as np
 from math import sqrt
 import copy
 
+
 class GeneralizedElasticNetSover(object):
 
-    def gmulup_solve(self, Amat, lvec, bvec, dvec, v0, err_tol=1e-8, verbose=False, text_fr=200):
+    def gmulup_solve(self, Amat, lvec, bvec, dvec, v0, err_tol=1e-6, max_iter=None, verbose=False, text_fr=200):
         A_plus = copy.deepcopy(Amat)
         A_plus[A_plus < 0] = 0
 
@@ -51,6 +51,11 @@ class GeneralizedElasticNetSover(object):
                 print(((old_v - v) ** 2).sum())
             count += 1
             updateFactor0 = v0 / v
+            if max_iter is None:
+                pass
+            else:
+                if count == max_iter:
+                    break
         return v
 
     def solve(self, Xmat, Yvec, lam_1, lam_2, lowbo, upbo, wvec, Sigma, err_tol=1e-8, verbose=False, text_fr=200):
@@ -86,6 +91,7 @@ class GeneralizedElasticNetSover(object):
             >>> betas = solver.solve(Xmat, Yvec, lam_1, lam_2, lowbo, upbo, wvec, Sigma)
 
         """
+        # print('lam_1: {}, lam_2: {}, lowbo: {}, upbo: {}, wvec:{}, Sigma:{}'.format(lam_1, lam_2, lowbo, upbo, wvec, Sigma))
         p = Xmat.shape[1]
         Amat = Xmat.transpose().dot(Xmat) + lam_2 * Sigma
         bvec = 2 * Amat.dot(lowbo) - 2 * Xmat.transpose().dot(Yvec)
@@ -97,6 +103,86 @@ class GeneralizedElasticNetSover(object):
 
         beta = v + lowbo
         return beta  # , plo
+
+
+from sklearn.base import BaseEstimator, RegressorMixin
+from sklearn.metrics import mean_squared_error
+from scipy.stats import special_ortho_group
+import inspect
+from sklearn.utils.validation import check_is_fitted
+
+
+class GeneralizedElasticNetRegressor(BaseEstimator, RegressorMixin):
+    """
+
+    """
+
+    def __init__(self, lam_1=0.0, lam_2=0.0, lowbo=None, upbo=None, ds=None, wvec=None, random_state=None,
+                 sigma_choice=0, w_choice=0,
+                 err_tol=1e-8, verbose=False, text_fr=200):
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        values.pop("self")
+
+        for arg, val in values.items():
+            setattr(self, arg, val)
+
+    def _generate_combination(self, p, k, choices=[0, 1]):
+        assert (k<2**p), 'k cannot be bigger than 2**p'
+        res = np.empty(p)
+        for i in range(p):
+            den = 2 ** (i + 1)
+            if k >= den:
+                num = k - den
+            else:
+                num = k
+            temp = np.floor(num / 2**i)
+            res[i] = choices[int(np.mod(temp, 2))]
+        return res
+
+    def fit(self, X, y=None):
+        n, p = X.shape
+
+        solver = GeneralizedElasticNetSover()
+
+        if self.ds is None:
+            # self.ds=np.ones(p, dtype=np.float)
+            ds = self._generate_combination(p, self.sigma_choice, [0.5,1])
+            ortho_mat = special_ortho_group.rvs(dim=p, random_state=self.random_state)
+            sigma_mat = ortho_mat @ np.diag(ds) @ ortho_mat.T
+        else:
+            assert (self.ds.shape[0] == p), 'Please make sure the dimension of the dataset matches!'
+            ortho_mat = special_ortho_group.rvs(dim=p, random_state=self.random_state)
+            sigma_mat = ortho_mat @ np.diag(self.ds) @ ortho_mat.T
+
+        if self.wvec is None:
+            # self.wvec=np.ones(p, dtype=np.float)/p
+            w = self._generate_combination(p, self.w_choice, [0,1])
+            wvec = w / sum(w)
+        else:
+            wvec = self.wvec
+
+        if self.lowbo is None:
+            self.lowbo = np.repeat(-999999.0, p)
+
+        if self.upbo is None:
+            self.upbo = np.repeat(999999.0, p)
+
+        self.coef_ = solver.solve(X, y, self.lam_1, self.lam_2, self.lowbo, self.upbo, wvec, sigma_mat,
+                                  self.err_tol, self.verbose, self.text_fr)
+
+        return self
+
+    def _decision_function(self, X):
+        check_is_fitted(self, "coef_")
+        return np.dot(X, self.coef_)
+
+    def predict(self, X, y=None):
+
+        return self._decision_function(X)
+
+    def score(self, X, y=None, sample_weight=None):
+
+        return mean_squared_error(y, self.predict(X), sample_weight=sample_weight)
 
 # To solve prob: Yvec=Xmat*beta
 
