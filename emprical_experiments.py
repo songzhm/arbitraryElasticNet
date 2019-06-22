@@ -139,7 +139,7 @@ from skopt.utils import use_named_args
 from skopt import dump, load
 from skopt import forest_minimize
 
-HPO_PARAMS = {'n_calls': 1000,
+HPO_PARAMS = {'n_calls': 10,
               'n_random_starts': 10,
               'base_estimator': 'ET',
               'acq_func': 'EI',
