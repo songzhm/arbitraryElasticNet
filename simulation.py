@@ -42,7 +42,7 @@ HPO_PARAMS = {'n_calls':10,
               }
 
 reg = GeneralizedElasticNetRegressor(beta=beta)
-up = min(np.iinfo(np.int64).max, 2 ** p)-1
+up = min(np.iinfo(np.int64).max, 2 ** p-1)
 # define search space and parameters
 
 space = [

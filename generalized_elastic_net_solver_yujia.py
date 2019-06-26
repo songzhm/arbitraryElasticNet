@@ -144,9 +144,9 @@ class GeneralizedElasticNetRegressor(BaseEstimator, RegressorMixin):
 
         if self.wvec is None:
             # self.wvec=np.ones(p, dtype=np.float)/p
-            self.wvec = GeneralizedElasticNetRegressor.decimal2combination(self.w_choice, p, 2)
-            if sum(self.wvec) != 0:
-                self.wvec = self.wvec / sum(self.wvec)
+            self.trans_wvec = GeneralizedElasticNetRegressor.decimal2combination(self.w_choice, p, 2)
+            if sum(self.trans_wvec) != 0:
+                self.trans_wvec = self.trans_wvec / sum(self.trans_wvec)
                 #         else:
                 #             wvec = self.wvec
 
@@ -156,7 +156,7 @@ class GeneralizedElasticNetRegressor(BaseEstimator, RegressorMixin):
         if self.upbo is None:
             self.upbo = np.repeat(float('inf'), p)
 
-        self.coef_ = solver.solve(X, y, self.lam_1, self.lam_2, self.lowbo, self.upbo, self.wvec, self.sigma_mat,
+        self.coef_ = solver.solve(X, y, self.lam_1, self.lam_2, self.lowbo, self.upbo, self.trans_wvec, self.sigma_mat,
                                   self.err_tol, self.verbose, self.text_fr)
 
         return self
