@@ -151,6 +151,7 @@ class GeneralizedElasticNetRegressor(BaseEstimator, RegressorMixin):
         if self.sigma_ds is None:
             if self.ds is None:
                 # self.ds=np.ones(p, dtype=np.float)
+                # print(self.sigma_choice, p, self.sigma_choice_base)
                 ds = GeneralizedElasticNetRegressor.decimal2combination(self.sigma_choice, p, self.sigma_choice_base)
                 if sum(ds) != 0:
                     ds = ds / sum(ds)
