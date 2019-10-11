@@ -7,8 +7,6 @@ Created on: 10/6/19 8:49 AM
 # %%
 from production.ARGEN import *
 from production.utility_function import *
-from skopt import BayesSearchCV
-from skopt.space import Real
 from sklearn.model_selection import cross_val_score, train_test_split
 import optuna
 from optuna.pruners import MedianPruner
@@ -41,7 +39,7 @@ X_test = X[testing_ind, :]
 y_train = y[training_ind]
 y_test = y[testing_ind]
 
-target_number = 10
+target_number = 50
 
 fs_clf = FeatureSelectionRegressor(p, target_number)
 
@@ -57,14 +55,15 @@ X_train_, X_val_, y_train, y_val = train_test_split(X_train_, y_train, test_size
 
 _, p_ = X_train_.shape
 
-# B = 0.6
-# A = (1 - B) / (target_number - 1)
-lowbo = np.array([0.01, 0.02, 0.01, 0.01, 0.02, 0.03, 0.05, 0.1, 0.01, 0.1])
-ls = lowbo.sum()
-upbo = np.array([1-(ls-l)+0.01 for l in lowbo])
-#
-# lowbo = np.ones(p_) * 0
-# upbo = np.ones(p_) * np.inf
+B = 0.6
+A = (1 - B) / (target_number - 1)
+# lowbo = np.array([0.01, 0.02, 0.01, 0.01, 0.02, 0.03, 0.05, 0.1, 0.01, 0.1])
+# ls = lowbo.sum()
+# upbo = np.array([1-(ls-l)+0.01 for l in lowbo])
+
+lowbo = np.ones(p_)*A
+upbo = np.ones(p_)*B
+
 # %%
 # benchmark
 nnols_clf = ARGEN(p_, 0, 0, lowbo, upbo, 0, 0)
@@ -78,7 +77,7 @@ print(nnols_clf.coef_)
 print(nnols_clf.coef_/nnols_clf.coef_.sum())
 # %%
 
-study_name = 'buy-and-hold-study-arls-vs-argen_10_B_vary_1_fold'  # Unique identifier of the study.
+study_name = 'buy-and-hold-study-arls-vs-argen_target_num_50_B_60'  # Unique identifier of the study.
 # buy-and-hold-study-arls-vs-argen_50_B_0.5
 study = optuna.create_study(study_name=study_name,
                             storage='postgresql://localhost:5432/optuna',
@@ -108,82 +107,82 @@ def trial_log_callback(benchmark_score, study, trial):
 
 if __name__ == '__main__':
     study.optimize(lambda trial: objective(trial, p_, X_train_, y_train, X_test_, y_test, lowbo, upbo),
-                   n_trials=6000,
-                   n_jobs=6,
+                   n_trials=10000,
+                   n_jobs=7,
                    callbacks=[lambda x, y: trial_log_callback(benchmark_score, x, y)])
 
 # %
 
 # %%
-
-best_clf = ARGEN(p_, 0.0253130133503531, 58.3638215147179, lowbo, upbo, 2704, 3006)
-# best_clf = ARGEN(p_, 0.0429969559618923, 9.22262235291937, lowbo, upbo, 3936, 4306)
-
-best_clf.fit(X_train_, y_train)
-
-best_clf.score(X_train_, y_train)
-
-coef = best_clf.coef_
-
-normalized_coef = coef / np.sum(coef)
-
-import matplotlib.pyplot as plt
-
-plt.hist(normalized_coef)
-plt.show()
-
-pred_1 = best_clf.predict(X_test_)
-pred_2 = nnols_clf.predict(X_test_)
-cum_pred_1 = np.cumprod(1 + pred_1) - 1
-cum_pred_2 = np.cumprod(1 + pred_2) - 1
-cum_true = np.cumprod(1 + y_test) - 1
-true = y_test
-
-plt.figure()
-plt.plot_date(dates[testing_ind], pred_1)
-plt.plot_date(dates[testing_ind], pred_2)
-plt.plot_date(dates[testing_ind], true)
-plt.show()
-
-plt.figure()
-plt.plot_date(dates[testing_ind], cum_pred_1, linestyle='--', markersize=1, label='NNL+ARGEN')
-plt.plot_date(dates[testing_ind], cum_pred_2, linestyle='-.', markersize=1, label='NNL+NNOLS')
-plt.plot_date(dates[testing_ind], cum_true, linestyle='-', markersize=1, label='sp500')
-plt.legend()
-plt.show()
-
-print('frequency, training month, cr, avr, av, te, tev, mse')
-
-print(
-    '{set0}, {set3}, {num0:.2%},{num1:.2%},{num2:.2%},'
-    '{num3:.3%},{num4:.3%},{num6: .2e}'
-        .format(set0=update_frequency,
-                set3=training_month,
-                num0=calculate_cumulative_return(pred_1),
-                num1=calculate_annual_average_return(pred_1),
-                num2=calculated_annual_volatility(pred_1),
-                num3=calculate_daily_tracking_error(pred_1, true),
-                num4=calculate_daily_tracking_error_volatility(pred_1, true),
-                num6=mean_squared_error(true, pred_1)
-                )
-)
-
-print(
-    '{set0}, {set3}, {num0:.2%},{num1:.2%},{num2:.2%},'
-    '{num3:.3%},{num4:.3%},{num6: .2e}'
-        .format(set0=update_frequency,
-                set3=training_month,
-                num0=calculate_cumulative_return(pred_2),
-                num1=calculate_annual_average_return(pred_2),
-                num2=calculated_annual_volatility(pred_2),
-                num3=calculate_daily_tracking_error(pred_2, true),
-                num4=calculate_daily_tracking_error_volatility(pred_2, true),
-                num6=mean_squared_error(true, pred_2)
-                )
-)
-
-print('best val', best_clf.score(X_val_, y_val))
-
-print('benchmark val', nnols_clf.score(X_val_, y_val))
-
-print(best_clf.coef_ / np.sum(best_clf.coef_))
+#
+# best_clf = ARGEN(p_, 0.0253130133503531, 58.3638215147179, lowbo, upbo, 2704, 3006)
+# # best_clf = ARGEN(p_, 0.0429969559618923, 9.22262235291937, lowbo, upbo, 3936, 4306)
+#
+# best_clf.fit(X_train_, y_train)
+#
+# best_clf.score(X_train_, y_train)
+#
+# coef = best_clf.coef_
+#
+# normalized_coef = coef / np.sum(coef)
+#
+# import matplotlib.pyplot as plt
+#
+# plt.hist(normalized_coef)
+# plt.show()
+#
+# pred_1 = best_clf.predict(X_test_)
+# pred_2 = nnols_clf.predict(X_test_)
+# cum_pred_1 = np.cumprod(1 + pred_1) - 1
+# cum_pred_2 = np.cumprod(1 + pred_2) - 1
+# cum_true = np.cumprod(1 + y_test) - 1
+# true = y_test
+#
+# plt.figure()
+# plt.plot_date(dates[testing_ind], pred_1)
+# plt.plot_date(dates[testing_ind], pred_2)
+# plt.plot_date(dates[testing_ind], true)
+# plt.show()
+#
+# plt.figure()
+# plt.plot_date(dates[testing_ind], cum_pred_1, linestyle='--', markersize=1, label='NNL+ARGEN')
+# plt.plot_date(dates[testing_ind], cum_pred_2, linestyle='-.', markersize=1, label='NNL+NNOLS')
+# plt.plot_date(dates[testing_ind], cum_true, linestyle='-', markersize=1, label='sp500')
+# plt.legend()
+# plt.show()
+#
+# print('frequency, training month, cr, avr, av, te, tev, mse')
+#
+# print(
+#     '{set0}, {set3}, {num0:.2%},{num1:.2%},{num2:.2%},'
+#     '{num3:.3%},{num4:.3%},{num6: .2e}'
+#         .format(set0=update_frequency,
+#                 set3=training_month,
+#                 num0=calculate_cumulative_return(pred_1),
+#                 num1=calculate_annual_average_return(pred_1),
+#                 num2=calculated_annual_volatility(pred_1),
+#                 num3=calculate_daily_tracking_error(pred_1, true),
+#                 num4=calculate_daily_tracking_error_volatility(pred_1, true),
+#                 num6=mean_squared_error(true, pred_1)
+#                 )
+# )
+#
+# print(
+#     '{set0}, {set3}, {num0:.2%},{num1:.2%},{num2:.2%},'
+#     '{num3:.3%},{num4:.3%},{num6: .2e}'
+#         .format(set0=update_frequency,
+#                 set3=training_month,
+#                 num0=calculate_cumulative_return(pred_2),
+#                 num1=calculate_annual_average_return(pred_2),
+#                 num2=calculated_annual_volatility(pred_2),
+#                 num3=calculate_daily_tracking_error(pred_2, true),
+#                 num4=calculate_daily_tracking_error_volatility(pred_2, true),
+#                 num6=mean_squared_error(true, pred_2)
+#                 )
+# )
+#
+# print('best val', best_clf.score(X_val_, y_val))
+#
+# print('benchmark val', nnols_clf.score(X_val_, y_val))
+#
+# print(best_clf.coef_ / np.sum(best_clf.coef_))
