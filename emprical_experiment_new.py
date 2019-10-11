@@ -17,6 +17,46 @@ from generalized_elastic_net_solver_yujia import *
 
 import numpy as np
 
+
+
+def calculate_cumulative_return(portfolio_return):
+    one_plus_return = 1+portfolio_return
+    return np.cumprod(one_plus_return)[-1]-1
+
+def calculate_annual_average_return(portfolio_return):
+    average_return = np.average(portfolio_return)
+    return (1+average_return)**252 - 1
+
+def calculated_annual_volatility(portfolio_return):
+    return np.sqrt(252)*np.std(portfolio_return)
+
+def calculate_daily_tracking_error(portfolio_return, index_return):
+    assert len(portfolio_return)==len(index_return), "two vectors need to be the same length"
+    res = np.sqrt(np.average(np.power(portfolio_return-index_return,2)))
+    return res
+
+def calculate_daily_tracking_error_volatility(portfolio_return, index_return):
+    assert len(portfolio_return)==len(index_return), "two vectors need to be the same length"
+    return np.std(np.abs(portfolio_return-index_return))
+
+def calculate_monthly_average_turnover(weights,update_frequency='none'):
+    _, np = weights.shape
+    diff = np.abs(weights[:,1:np] - weights[:,0:(np-1)])
+    if update_frequency == 'quarterly':
+        f = 3
+
+    elif update_frequency == 'semi-annually':
+        f = 6
+
+    elif update_frequency == 'annually':
+        f = 12
+
+    else:
+        return 0
+
+    return np.sum(diff)/2/f
+
+
 mydateparser = lambda x: pd.datetime.strptime(x, "%m/%d/%y")
 sp500_all = pd.read_csv('sandp500/sp500_pct.csv', index_col='Date', parse_dates=['Date.1'], date_parser=mydateparser)
 
@@ -29,13 +69,18 @@ sp500 = sp500_all['SP500']
 
 X = constituents.values
 y = sp500.values
-
-
-
+time_vec = np.array(list(range(1, X.shape[0]+1)))
+time_mat = np.array([time_vec,]*X.shape[1]).T
+X_t_interaction = X*time_mat
+X =np.concatenate((time_vec[...,None],X,X_t_interaction),axis=1)
+del time_mat
+del X_t_interaction
 
 X_train_val, X_test, y_train_val, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 X_train, X_val, y_train, y_val = train_test_split(X_train_val, y_train_val, test_size=0.5, random_state=42)
-_, p = X_train.shape
+
+
+_, p = X.shape
 
 HPO_PARAMS = {'n_calls': 10,
               'n_random_state': 10,
@@ -43,7 +88,7 @@ HPO_PARAMS = {'n_calls': 10,
               'acq_func': 'EI',
               'xi': 0.02,
               'kappa': 1.96,
-              'n_points': 10000,
+              'n_points': 1000,
               "n_jobs": -1,
               "verbose": True
               }
@@ -107,10 +152,33 @@ plt.show()
 # plot_objective(results)
 # plt.show()
 
-reg.set_params(lam_1=results.x[0], lam_2=results.x[1], lowbo=None, upbo=None,
-               ds=None,
-               wvec=None, random_state=None,
-                 sigma_choice=results.x[2], w_choice=results.x[3],
-                 err_tol=1e-8, verbose=False, text_fr=200)
+reg.set_params(lam_1=results.x[0], lam_2=results.x[1], lowbo=None, upbo=None, ds=None,
+               wvec=None, random_state=None, sigma_choice=results.x[2], w_choice=results.x[3],
+               err_tol=1e-8, verbose=False, text_fr=200)
 coef=(reg.fit(X_train,y_train)).coef_
 print(reg.score(X_test))
+
+
+# utility functions
+
+def get_data_index(time_vec, update_frequency='none'):
+    n = len(time_vec)
+    training_size = 6*21
+    if update_frequency=='quarterly':
+        testing_size = 63
+    elif update_frequency=='semi-annually':
+        testing_size = 126
+    elif update_frequency=='annually':
+        testing_size = 252
+    else:
+        testing_size = n - training_size
+
+    total_size = training_size + testing_size
+    num_of_updates = int(n / total_size)
+
+    training_indexes = np.array([time_vec[(testing_size * i):(testing_size * i + training_size)] for i in range(num_of_updates)])
+    testing_indexes = np.array([time_vec[(testing_size * i + training_size):(testing_size * i + total_size)] for i in range(num_of_updates)])
+
+    return training_indexes, testing_indexes
+
+

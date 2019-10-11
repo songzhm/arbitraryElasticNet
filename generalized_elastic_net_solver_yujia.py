@@ -10,7 +10,8 @@ from baseconvert import base
 
 
 class GeneralizedElasticNetSover(object):
-    def gmulup_solve(self, Amat, lvec, bvec, dvec, v0, err_tol=1e-8, text='Off', text_fr=200):
+
+    def gmulup_solve(self, Amat, lvec, bvec, dvec, v0, err_tol=1e-8, text='Off', text_fr=200, max_iter=2000):
         A_plus = copy.deepcopy(Amat)
         A_plus[A_plus < 0] = 0
 
@@ -26,7 +27,7 @@ class GeneralizedElasticNetSover(object):
 
         updateFactor = np.array([1.0 for x in range(len(bvec))])
         count = 0
-        while (((old_v - v) ** 2).sum() > err_tol):
+        while ((old_v - v) ** 2).sum() > err_tol and count < max_iter:
             v[np.where(v == 0)] = 0.00000001
             updateFactor0 = v0 / v
             updateFactor0[np.where(updateFactor0 == 0)] = 0.00000001
@@ -55,7 +56,7 @@ class GeneralizedElasticNetSover(object):
 
         return v
 
-    def solve(self, Xmat, Yvec, lam_1, lam_2, lowbo, upbo, wvec, Sigma, err_tol=1e-8, text='Off', text_fr=200):
+    def solve(self, Xmat, Yvec, lam_1, lam_2, lowbo, upbo, wvec, Sigma, err_tol=1e-8, text='Off', text_fr=200, max_iter=2000):
         """Xmat, Yvec, lowbo, upbo,  wvec, Sigma,: numpy array;
            lam_1, lam_2: float; """
         p = Xmat.shape[1]
@@ -65,7 +66,7 @@ class GeneralizedElasticNetSover(object):
         dvec = lam_1 * wvec
         v0 = np.maximum(0, -lowbo)
         lvec = upbo - lowbo
-        v = self.gmulup_solve(Amat, lvec, bvec, dvec, v0, err_tol, text, text_fr)
+        v = self.gmulup_solve(Amat, lvec, bvec, dvec, v0, err_tol, text, text_fr, max_iter)
 
         beta = v + lowbo
         return beta  # , plo
@@ -93,6 +94,7 @@ class GeneralizedElasticNetRegressor(BaseEstimator, RegressorMixin):
                  sigma_choice=0, sigma_choice_base=None, sigma_choice_up=10 ** 5,
                  w_choice=0, w_choice_base=None, w_choice_up=10 ** 5,
                  err_tol=1e-8, verbose=False, text_fr=200):
+
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         values.pop("self")
 
