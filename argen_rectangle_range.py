@@ -80,7 +80,7 @@ print(nnols_clf.coef_/nnols_clf.coef_.sum())
 study_name = 'buy-and-hold-study-arls-vs-argen_target_num_50_B_60'  # Unique identifier of the study.
 # buy-and-hold-study-arls-vs-argen_50_B_0.5
 study = optuna.create_study(study_name=study_name,
-                            storage='postgresql://localhost:5432/optuna',
+                            storage='postgresql://ming:@localhost:5432/optuna',
                             load_if_exists=True,
                             pruner=MedianPruner()
                             )
