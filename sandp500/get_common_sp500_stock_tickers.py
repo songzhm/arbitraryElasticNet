@@ -36,7 +36,7 @@ def get_common_sp500_stock_tickers(start_date, end_date):
     for i, item in enumerate(changed_itmes):
         
         all_tds = item.findAll('td')
-        date_ = all_tds[0].contents[0]
+        date_ = all_tds[0].contents[0].rstrip()
         try:
             dates.append(datetime.datetime.strptime(date_, "%B %d, %Y").date())
     #         d = datetime.datetime.strptime(date_, "%B %d, %Y")
@@ -74,7 +74,7 @@ def get_common_sp500_stock_tickers(start_date, end_date):
 
     valid_symbols = symbols[~np.isin(symbols, changed_tickers)]
 
-    return valid_symbols.tolist()
+    return list(np.unique(valid_symbols.tolist()))
 
 
 # if __name__=='__main__':
