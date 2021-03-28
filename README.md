@@ -36,9 +36,9 @@ Authors:
 └── simulation                              -> implementations for chapter 5
     ├── __init__.py
     ├── arbitrary_signal.py
-    ├── driver.py
+    ├── driver.py                           -> simulation utility class definition
     ├── simple_signal.py
-    └── simulation_of_other_dataset.py
+    └── simulation_of_other_dataset.py      -> main script to generate 8 example results
 ```
 
 
