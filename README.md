@@ -1,6 +1,6 @@
 # Simulation and Empirical Study Implementation with ArbitraryRectangle-range Generalized Elastic Net
 
-This repo. contains python implementation for the paper [Variable Selection and regularization via ArbitraryRectangle-range Generalized Elastic Net]().
+This repo. contains python implementation for the paper [Variable Selection and regularization via Arbitrary Rectangle-range Generalized Elastic Net]().
 
 Authors:
 - Yujia Ding* <yujia.ding@cgu.edu>
